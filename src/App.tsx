@@ -24,7 +24,6 @@ export const App: React.FC = () => {
   const [tempTodo, setTempTodo] = useState<Todo | null>(null);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
   const [editingTodoId, setEditingTodoId] = useState<number | null>(null);
-
   const newTodoFieldRef = useRef<HTMLInputElement>(null);
 
   const handleError = (message: string) => {
@@ -33,8 +32,6 @@ export const App: React.FC = () => {
   };
 
   useEffect(() => {
-    newTodoFieldRef.current?.focus();
-
     getTodos()
       .then(setTodos)
       .catch(() => {
@@ -43,11 +40,13 @@ export const App: React.FC = () => {
       });
   }, []);
 
+  // #FIX: Uproszczony i bardziej niezawodny useEffect do zarządzania focusem
   useEffect(() => {
-    if (error) {
+    // Ustawiamy focus po załadowaniu strony lub po pojawieniu się błędu
+    if (todos !== null || error) {
       newTodoFieldRef.current?.focus();
     }
-  }, [error]);
+  }, [todos, error]);
 
   const activeTodos = useMemo(
     () => (todos || []).filter(t => !t.completed),
@@ -60,7 +59,6 @@ export const App: React.FC = () => {
 
   const visibleTodos = useMemo(() => {
     const currentTodos = todos || [];
-
     switch (filterBy) {
       case FilterStatus.ACTIVE:
         return currentTodos.filter(t => !t.completed);
@@ -74,15 +72,11 @@ export const App: React.FC = () => {
   const handleAddTodo = (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
-
     const trimmedTitle = newTodoTitle.trim();
-
     if (!trimmedTitle) {
       handleError('Title should not be empty');
-
       return;
     }
-
     setTempTodo({
       id: 0,
       title: trimmedTitle,
@@ -90,13 +84,14 @@ export const App: React.FC = () => {
       userId: USER_ID,
     });
     setLoadingIds(prev => [...prev, 0]);
-
     createTodo(trimmedTitle)
       .then(newTodo => {
         setTodos(current => (current ? [...current, newTodo] : [newTodo]));
         setNewTodoTitle('');
       })
-      .catch(() => handleError('Unable to add a todo'))
+      .catch(() => {
+        handleError('Unable to add a todo');
+      })
       .finally(() => {
         setTempTodo(null);
         setLoadingIds(prev => prev.filter(id => id !== 0));
@@ -107,10 +102,7 @@ export const App: React.FC = () => {
     todoId: number,
     data: Partial<Omit<Todo, 'id'>>,
   ) => {
-    if (!todos) {
-      return;
-    }
-
+    if (!todos) return;
     setError('');
     setLoadingIds(prev => [...prev, todoId]);
     updateTodo(todoId, data)
@@ -124,43 +116,33 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteTodo = (todoId: number) => {
-    if (!todos) {
-      return;
-    }
-
+    if (!todos) return;
     setError('');
     setLoadingIds(prev => [...prev, todoId]);
     deleteTodo(todoId)
-      .then(() =>
-        setTodos(current => (current || []).filter(todo => todo.id !== todoId)),
-      )
+      .then(() => {
+        setTodos(current => (current || []).filter(todo => todo.id !== todoId));
+      })
       .catch(() => handleError('Unable to delete a todo'))
       .finally(() => setLoadingIds(prev => prev.filter(id => id !== todoId)));
   };
 
   const handleClearCompleted = () => {
-    if (!completedTodos.length) {
-      return;
-    }
-
+    if (!completedTodos.length) return;
     const idsToDelete = completedTodos.map(t => t.id);
-
     setLoadingIds(prev => [...prev, ...idsToDelete]);
-
     const promises = completedTodos.map(todo => deleteTodo(todo.id));
-
     Promise.allSettled(promises)
       .then(results => {
         const failed = results.some(r => r.status === 'rejected');
-
         if (failed) {
           handleError('Unable to delete a todo');
         }
-
         const successfulIds = results
-          .filter(r => r.status === 'fulfilled')
-          .map((r, i) => idsToDelete[i]);
-
+          .map((result, index) =>
+            result.status === 'fulfilled' ? idsToDelete[index] : null,
+          )
+          .filter(id => id !== null);
         setTodos(current =>
           (current || []).filter(t => !successfulIds.includes(t.id)),
         );
@@ -178,7 +160,7 @@ export const App: React.FC = () => {
       <div className="todoapp__content">
         {todos === null ? (
           <div data-cy="TodoLoader" className="loader-container">
-            <div className="loader"></div>
+            <div className="loader" />
           </div>
         ) : (
           <>
@@ -189,7 +171,6 @@ export const App: React.FC = () => {
               inputRef={newTodoFieldRef}
               isAdding={!!tempTodo}
             />
-
             <TodoList
               todos={visibleTodos}
               tempTodo={tempTodo}
@@ -199,7 +180,6 @@ export const App: React.FC = () => {
               onDeleteTodo={handleDeleteTodo}
               onSetEditingId={setEditingTodoId}
             />
-
             {todos.length > 0 && (
               <Footer
                 activeCount={activeTodos.length}
@@ -212,7 +192,6 @@ export const App: React.FC = () => {
           </>
         )}
       </div>
-
       <ErrorNotification error={error} onErrorClose={setError} />
     </div>
   );

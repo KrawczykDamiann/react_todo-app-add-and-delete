@@ -4,7 +4,7 @@ interface Props {
   title: string;
   onTitleChange: (title: string) => void;
   onSubmit: (event: React.FormEvent) => void;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement>; // #FIX: Dodaj typ dla referencji
   isAdding: boolean;
 }
 
@@ -12,7 +12,7 @@ export const Header: React.FC<Props> = ({
   title,
   onTitleChange,
   onSubmit,
-  inputRef,
+  inputRef, // #FIX: Odbierz referencję z propsów
   isAdding,
 }) => {
   return (
@@ -20,7 +20,7 @@ export const Header: React.FC<Props> = ({
       <form onSubmit={onSubmit}>
         <input
           data-cy="NewTodoField"
-          ref={inputRef}
+          ref={inputRef} // #FIX: Przypisz referencję do elementu input
           type="text"
           className="todoapp__new-todo"
           placeholder="What needs to be done?"
